@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import { https } from "firebase-functions";
 import admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
@@ -23,9 +23,7 @@ const origins = [
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (origins.includes(origin!)) callback(null, true);
-    },
+    origin: origins,
   })
 );
 
@@ -43,4 +41,4 @@ app.use("/test", authentication, (_, res) => {
   res.send("OK");
 });
 
-export const api = functions.region("asia-southeast1").https.onRequest(app);
+export const api = https.onRequest(app);
