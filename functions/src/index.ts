@@ -5,6 +5,8 @@ import cors from "cors";
 import cookieParse from "cookie-parser";
 import morgan from "morgan";
 import helmet from "helmet";
+import { authRoute } from "./feature/auth/auth.route";
+import { authentication } from "./middleware/authentication";
 
 const app = express();
 
@@ -34,5 +36,11 @@ app.use(morgan("dev"));
 
 // Routes
 app.get("/", (_, res) => res.send("OK"));
+
+app.use("/auth", authRoute);
+
+app.use("/test", authentication, (_, res) => {
+  res.send("OK");
+});
 
 export const api = functions.region("asia-southeast1").https.onRequest(app);
