@@ -8,6 +8,10 @@ import helmet from "helmet";
 
 const app = express();
 
+// Firebase
+admin.initializeApp();
+export const db = admin.firestore();
+
 // CORS
 const origins = [
   "http://localhost:3000",
@@ -29,8 +33,6 @@ app.use(cookieParse());
 app.use(morgan("dev"));
 
 // Routes
-app.get("/", (_, res) => {
-  res.send("OK");
-});
+app.get("/", (_, res) => res.send("OK"));
 
 export const api = functions.region("asia-southeast1").https.onRequest(app);
