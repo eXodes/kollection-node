@@ -4,7 +4,7 @@
     "lint": "eslint .",
     "watch": "tsc --w",
     "build": "tsc",
-    "serve": "firebase emulators:start --only functions,firestore,hosting",
+    "serve": "NODE_ENV=development FIRESTORE_EMULATOR_HOST=localhost:8080 firebase emulators:start --only functions,firestore,hosting",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions,hosting",
