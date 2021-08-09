@@ -2,7 +2,7 @@
   "name": "functions",
   "scripts": {
     "lint": "eslint .",
-    "watch": "tsc --w",
+    "watch": "tsc -w",
     "build": "tsc",
     "serve": "NODE_ENV=development FIRESTORE_EMULATOR_HOST=localhost:8080 firebase emulators:start --only functions,firestore,hosting",
     "shell": "npm run build && firebase functions:shell",
