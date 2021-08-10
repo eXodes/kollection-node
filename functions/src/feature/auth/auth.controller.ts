@@ -4,6 +4,7 @@ import {
   createAccessToken,
   createRefreshToken,
   verifyRefreshToken,
+  decodeAccessToken,
   REFRESH_TOKEN_MAX_AGE,
 } from "../../factory/token";
 import { validate } from "../../factory/validator";
@@ -68,6 +69,23 @@ const authenticate = async (
     });
   } catch (error) {
     return res.status(400).send(error);
+  }
+};
+
+const verifyAccess = async (
+  req: express.Request,
+  res: express.Response
+): Promise<express.Response> => {
+  const accessToken = req.body.token;
+
+  try {
+    const payload = await decodeAccessToken(accessToken);
+
+    return res.status(201).send({
+      data: payload,
+    });
+  } catch (error) {
+    return res.status(401).send(error);
   }
 };
 
@@ -146,4 +164,4 @@ const clearToken = async (
   }
 };
 
-export { create, authenticate, createToken, clearToken };
+export { create, authenticate, verifyAccess, createToken, clearToken };
