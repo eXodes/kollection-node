@@ -4,7 +4,7 @@ import express from "express";
 import cors from "cors";
 import cookieParse from "cookie-parser";
 import morgan from "morgan";
-import helmet from "helmet";
+// import helmet from "helmet";
 import { authRoute } from "./feature/auth/auth.route";
 import { authentication } from "./middleware/authentication";
 
@@ -15,30 +15,28 @@ admin.initializeApp();
 export const db = admin.firestore();
 
 // CORS
-const origins = [
-  "http://localhost:3000",
-  "http://localhost:4000",
-  "http://localhost:5000",
-];
+// const origins = [
+//   "http://localhost:3000",
+//   "http://localhost:4000",
+//   "http://localhost:5000",
+// ];
 
 app.use(
   cors({
-    origin: origins,
+    origin: true,
   })
 );
 
 // Middleware
-app.use(helmet());
+// app.use(helmet());
 app.use(cookieParse());
 app.use(morgan("dev"));
 
 // Routes
-app.get("/", (_, res) => res.send("OK"));
+app.get("/api", (req, res) => res.send({ status: "OK" }));
 
-app.use("/auth", authRoute);
+app.use("/api/auth", authRoute);
 
-app.use("/test", authentication, (_, res) => {
-  res.send("OK");
-});
+app.get("/api/test", authentication, (_, res) => res.send({ status: "OK" }));
 
 export const api = https.onRequest(app);
