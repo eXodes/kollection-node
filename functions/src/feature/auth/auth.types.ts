@@ -3,5 +3,5 @@ export type AuthInput<T = null> = {
   email?: string;
   username: string;
   password: string;
-  claims: T | null;
+  claims?: T | null;
 };
