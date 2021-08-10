@@ -81,7 +81,7 @@ const verifyAccess = async (
   try {
     const payload = await decodeAccessToken(accessToken);
 
-    return res.status(201).send({
+    return res.send({
       data: payload,
     });
   } catch (error) {
