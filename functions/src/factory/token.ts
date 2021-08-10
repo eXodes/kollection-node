@@ -1,6 +1,6 @@
 import { firestore } from "firebase-admin";
 import { config } from "firebase-functions";
-import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken";
+import jwt, { JwtPayload, verify, VerifyErrors } from "jsonwebtoken";
 import { AuthenticationError } from "./error";
 
 export const ACCESS_TOKEN_MAX_AGE = 20;
@@ -14,6 +14,12 @@ const createAccessToken = (user: Partial<firestore.DocumentData>): string => {
 
 const createRefreshToken = (user: Partial<firestore.DocumentData>): string => {
   return jwt.sign(user, config().token.refreshSecret);
+};
+
+const decodeAccessToken = async (
+  token: string
+): Promise<JwtPayload | string> => {
+  return verify(token, config().token.accessSecret);
 };
 
 const verifyAccessToken = (token: string): void => {
@@ -46,6 +52,7 @@ const verifyRefreshToken = async (
 export {
   createAccessToken,
   verifyAccessToken,
+  decodeAccessToken,
   createRefreshToken,
   verifyRefreshToken,
 };
