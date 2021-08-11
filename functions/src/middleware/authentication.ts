@@ -1,14 +1,14 @@
-import express from "express";
+import { Request, Response, NextFunction } from "express";
 import { AuthenticationError } from "../factory/error";
 import { verifyAccessToken } from "../factory/token";
 
 const authentication = async (
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-): Promise<void | express.Response> => {
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void | Response> => {
   try {
-    const authorization = req.headers["authorization"] as string | null;
+    const authorization = req.headers["authorization"];
     const type = authorization?.split(" ")[0];
     const credentials = authorization?.split(" ")[1];
 
