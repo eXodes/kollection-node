@@ -1,21 +1,35 @@
-import express from "express";
+import { Request, Response } from "express";
 import { AuthenticationError } from "../../factory/error";
 import {
   createAccessToken,
   createRefreshToken,
-  verifyRefreshToken,
   decodeAccessToken,
-  REFRESH_TOKEN_MAX_AGE,
+  sendRefreshToken,
+  verifyRefreshToken,
 } from "../../factory/token";
 import { validate } from "../../factory/validator";
 import { AuthService } from "./auth.service";
 
-const dev = process.env.NODE_ENV === "development";
+const verify = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const authorization = req.headers["authorization"]!;
+    const credentials = authorization?.split(" ")[1];
 
-const create = async (
-  req: express.Request,
-  res: express.Response
-): Promise<express.Response> => {
+    const payload = await decodeAccessToken(credentials);
+
+    return res.send({
+      data: {
+        username: payload.id,
+        name: payload.name,
+        email: payload.email,
+      },
+    });
+  } catch (error) {
+    return res.status(401).send(error);
+  }
+};
+
+const create = async (req: Request, res: Response): Promise<Response> => {
   try {
     validate(req.body);
 
@@ -26,26 +40,19 @@ const create = async (
 
     await AuthService.saveToken(req.body.username, refreshToken);
 
-    res.cookie("jwt", refreshToken, {
-      maxAge: 1000 * REFRESH_TOKEN_MAX_AGE,
-      httpOnly: true,
-      secure: !dev,
-    });
+    sendRefreshToken(res, refreshToken);
 
     return res.status(201).send({
       code: "auth/created",
       message: "User created.",
-      token: token,
+      data: { token },
     });
   } catch (error) {
     return res.status(400).send(error);
   }
 };
 
-const authenticate = async (
-  req: express.Request,
-  res: express.Response
-): Promise<express.Response> => {
+const authenticate = async (req: Request, res: Response): Promise<Response> => {
   try {
     validate(req.body);
 
@@ -56,43 +63,19 @@ const authenticate = async (
 
     await AuthService.saveToken(req.body.username, refreshToken);
 
-    res.cookie("jwt", refreshToken, {
-      maxAge: 1000 * REFRESH_TOKEN_MAX_AGE,
-      httpOnly: true,
-      secure: !dev,
-    });
+    sendRefreshToken(res, refreshToken);
 
     return res.status(200).send({
       code: "auth/authenticated",
-      message: "User logged in.",
-      token: token,
+      message: "User authenticated.",
+      data: { token },
     });
   } catch (error) {
     return res.status(400).send(error);
   }
 };
 
-const verifyAccess = async (
-  req: express.Request,
-  res: express.Response
-): Promise<express.Response> => {
-  const accessToken = req.body.token;
-
-  try {
-    const payload = await decodeAccessToken(accessToken);
-
-    return res.send({
-      data: payload,
-    });
-  } catch (error) {
-    return res.status(401).send(error);
-  }
-};
-
-const createToken = async (
-  req: express.Request,
-  res: express.Response
-): Promise<express.Response> => {
+const refreshToken = async (req: Request, res: Response): Promise<Response> => {
   const refreshToken = req.cookies.jwt;
 
   try {
@@ -112,6 +95,12 @@ const createToken = async (
 
     const payload = await verifyRefreshToken(refreshToken);
 
+    if (!payload.id)
+      throw new AuthenticationError(
+        "auth/unauthenticated",
+        "Not authenticated."
+      );
+
     const token = createAccessToken({
       id: payload?.id,
       name: payload?.name,
@@ -120,18 +109,15 @@ const createToken = async (
 
     return res.status(201).send({
       code: "auth/authorized",
-      message: "Token created.",
-      token,
+      message: "New access token created.",
+      data: { token },
     });
   } catch (error) {
     return res.status(401).send(error);
   }
 };
 
-const clearToken = async (
-  req: express.Request,
-  res: express.Response
-): Promise<express.Response> => {
+const clearToken = async (req: Request, res: Response): Promise<Response> => {
   const refreshToken = req.cookies.jwt;
 
   try {
@@ -157,11 +143,11 @@ const clearToken = async (
 
     return res.status(205).send({
       code: "auth/clear",
-      message: "Token removed.",
+      message: "Refresh token removed.",
     });
   } catch (error) {
     return res.status(401).send(error);
   }
 };
 
-export { create, authenticate, verifyAccess, createToken, clearToken };
+export { verify, create, authenticate, refreshToken, clearToken };
