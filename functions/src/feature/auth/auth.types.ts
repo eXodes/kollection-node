@@ -1,3 +1,5 @@
+import { JwtPayload } from "jsonwebtoken";
+
 export type AuthInput<T = null> = {
   name?: string;
   email?: string;
@@ -5,3 +7,9 @@ export type AuthInput<T = null> = {
   password: string;
   claims?: T | null;
 };
+
+export interface AuthPayload extends JwtPayload {
+  id: string;
+  name: string;
+  email: string;
+}
