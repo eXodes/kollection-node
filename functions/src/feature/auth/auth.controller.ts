@@ -5,7 +5,8 @@ import {
   createRefreshToken,
   decodeAccessToken,
   sendRefreshToken,
-  verifyRefreshToken,
+  decodeRefreshToken,
+  clearRefreshToken,
 } from "../../factory/token";
 import { validate } from "../../factory/validator";
 import { AuthService } from "./auth.service";
@@ -15,7 +16,7 @@ const verify = async (req: Request, res: Response): Promise<Response> => {
     const authorization = req.headers["authorization"]!;
     const credentials = authorization?.split(" ")[1];
 
-    const payload = await decodeAccessToken(credentials);
+    const payload = decodeAccessToken(credentials);
 
     return res.send({
       data: {
@@ -35,10 +36,14 @@ const create = async (req: Request, res: Response): Promise<Response> => {
 
     const user = await AuthService.create(req.body);
 
-    const token = createAccessToken(user);
-    const refreshToken = createRefreshToken(user);
+    const refreshToken = createRefreshToken({
+      id: user.id,
+      version: 0,
+    });
 
-    await AuthService.saveToken(req.body.username, refreshToken);
+    await AuthService.saveToken(user.id, refreshToken);
+
+    const token = createAccessToken(user);
 
     sendRefreshToken(res, refreshToken);
 
@@ -58,10 +63,9 @@ const authenticate = async (req: Request, res: Response): Promise<Response> => {
 
     const user = await AuthService.authenticate(req.body);
 
-    const token = createAccessToken(user);
-    const refreshToken = createRefreshToken(user);
+    const refreshToken = await AuthService.getToken(user.id);
 
-    await AuthService.saveToken(req.body.username, refreshToken);
+    const token = createAccessToken(user);
 
     sendRefreshToken(res, refreshToken);
 
@@ -75,31 +79,30 @@ const authenticate = async (req: Request, res: Response): Promise<Response> => {
   }
 };
 
-const refreshToken = async (req: Request, res: Response): Promise<Response> => {
-  const refreshToken = req.cookies.jwt;
-
+const revalidateToken = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
+    const refreshToken = req.cookies.jwt;
+
     if (!refreshToken)
       throw new AuthenticationError(
         "auth/unauthenticated",
         "Not authenticated."
       );
 
-    const valid = await AuthService.getToken(refreshToken);
+    const payload = decodeRefreshToken(refreshToken);
 
-    if (!valid)
-      throw new AuthenticationError(
-        "auth/unauthenticated",
-        "Not authenticated."
-      );
+    const userRefreshToken = await AuthService.getToken(payload.id);
 
-    const payload = await verifyRefreshToken(refreshToken);
+    if (!userRefreshToken)
+      throw new AuthenticationError("auth/invalid", "Refresh token invalid.");
 
-    if (!payload.id)
-      throw new AuthenticationError(
-        "auth/unauthenticated",
-        "Not authenticated."
-      );
+    const userPayload = decodeRefreshToken(userRefreshToken);
+
+    if (payload.version !== userPayload.version)
+      throw new AuthenticationError("auth/invalid", "Refresh token invalid.");
 
     const token = createAccessToken({
       id: payload?.id,
@@ -118,16 +121,18 @@ const refreshToken = async (req: Request, res: Response): Promise<Response> => {
 };
 
 const clearToken = async (req: Request, res: Response): Promise<Response> => {
-  const refreshToken = req.cookies.jwt;
-
   try {
+    const refreshToken = req.cookies.jwt;
+
     if (!refreshToken)
       throw new AuthenticationError(
         "auth/unauthenticated",
         "Not authenticated."
       );
 
-    const valid = await AuthService.getToken(refreshToken);
+    const payload = decodeRefreshToken(refreshToken);
+
+    const valid = await AuthService.getToken(payload.id);
 
     if (!valid)
       throw new AuthenticationError(
@@ -135,11 +140,14 @@ const clearToken = async (req: Request, res: Response): Promise<Response> => {
         "Not authenticated."
       );
 
-    await verifyRefreshToken(refreshToken);
+    const newRefreshToken = createRefreshToken({
+      id: payload.id,
+      version: payload.version + 1,
+    });
 
-    await AuthService.removeToken(refreshToken);
+    await AuthService.saveToken(payload.id, newRefreshToken);
 
-    res.clearCookie("jwt");
+    clearRefreshToken(res);
 
     return res.status(205).send({
       code: "auth/clear",
@@ -150,4 +158,4 @@ const clearToken = async (req: Request, res: Response): Promise<Response> => {
   }
 };
 
-export { verify, create, authenticate, refreshToken, clearToken };
+export { verify, create, authenticate, revalidateToken, clearToken };
