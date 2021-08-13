@@ -102,6 +102,10 @@ const sendRefreshToken = (res: Response, refreshToken: string): void => {
   });
 };
 
+const clearRefreshToken = (res: Response): void => {
+  res.clearCookie("jwt");
+};
+
 export {
   createAccessToken,
   verifyAccessToken,
@@ -109,4 +113,5 @@ export {
   createRefreshToken,
   decodeRefreshToken,
   sendRefreshToken,
+  clearRefreshToken,
 };
