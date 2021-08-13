@@ -1,21 +1,23 @@
-import { firestore } from "firebase-admin";
-import { fs, fsUsers, fsUserDoc } from "../../enums/firestore";
+import { collection, usersCollection, metaDoc } from "../../enums/firestore";
 import { ServiceError } from "../../factory/error";
 import { hashPassword, verifyPassword } from "../../factory/password";
 import { db } from "../../index";
-import { AuthInput } from "./auth.types";
+import { AuthInput, AuthModel } from "./auth.types";
 
 const AuthService = {
-  create: async (body: AuthInput): Promise<firestore.DocumentData> => {
+  create: async (body: AuthInput): Promise<AuthModel> => {
     const { username, password, name, email } = body;
 
-    const usersRef = db.collection(fs.USERS);
+    const usersRef = db.collection(collection.USERS);
     const userRef = usersRef.doc(username);
-    const userData = await userRef.get();
-    const privateRef = userRef.collection(fsUsers.META).doc(fsUserDoc.PRIVATE);
-    const querySnapshot = await usersRef.where("email", "==", email).get();
+    const privateRef = userRef
+      .collection(usersCollection.META)
+      .doc(metaDoc.PRIVATE);
 
-    if (userData.exists || !querySnapshot.empty)
+    const userData = await userRef.get();
+    const emailSnapshot = await usersRef.where("email", "==", email).get();
+
+    if (userData.exists || !emailSnapshot.empty)
       throw new ServiceError(
         "auth/user-exist",
         "Username or email already exist."
@@ -28,63 +30,74 @@ const AuthService = {
 
     await batch.commit();
 
-    return (await userRef.get()).data()!;
+    const authData = (await userRef.get()).data();
+
+    if (!authData)
+      throw new ServiceError(
+        "auth/process-error",
+        "Server encounter error while processing data."
+      );
+
+    return authData as AuthModel;
   },
 
-  authenticate: async (body: AuthInput): Promise<firestore.DocumentData> => {
+  authenticate: async (body: AuthInput): Promise<AuthModel> => {
     const { username, password } = body;
 
-    const usersRef = db.collection(fs.USERS);
-    const userRef = usersRef.doc(username);
-    const privateRef = userRef.collection(fsUsers.META).doc(fsUserDoc.PRIVATE);
+    const userRef = db.collection(collection.USERS).doc(username);
+    const privateRef = userRef
+      .collection(usersCollection.META)
+      .doc(metaDoc.PRIVATE);
 
-    const userData = await userRef.get();
-    if (!userData.exists) {
+    const authData = await userRef.get();
+
+    if (!authData.exists) {
       throw new ServiceError(
         "auth/invalid",
         "Username and password doesn't exist."
       );
     }
 
-    const verified = verifyPassword(
-      password,
-      (await privateRef.get()).data()?.hash
-    );
+    const privateData = await privateRef.get();
+    const verified = verifyPassword(password, privateData.data()?.hash);
+
     if (!verified)
       throw new ServiceError(
         "auth/invalid",
         "Username and password doesn't exist."
       );
 
-    return userData.data()!;
+    return authData.data() as AuthModel;
   },
 
-  saveToken: async (
-    username: string,
-    refreshToken: string
-  ): Promise<firestore.WriteResult> => {
-    const tokenRef = db.collection(fs.TOKENS);
+  saveToken: async (username: string, refreshToken: string): Promise<void> => {
+    try {
+      const privateRef = db
+        .collection(collection.USERS)
+        .doc(username)
+        .collection(usersCollection.META)
+        .doc(metaDoc.PRIVATE);
 
-    const userRef = tokenRef && tokenRef.doc(username);
-    return userRef && (await userRef.set({ refreshToken }));
+      await privateRef.set({ token: refreshToken }, { merge: true });
+    } catch (err) {
+      console.error(err);
+      throw new ServiceError("auth/invalid", "Refresh token doesn't exist.");
+    }
   },
 
-  getToken: async (token: string): Promise<boolean> => {
-    const tokenRef = db.collection(fs.TOKENS);
-    const querySnapshot = await tokenRef
-      .where("refreshToken", "==", token)
-      .get();
+  getToken: async (username: string): Promise<string> => {
+    try {
+      const privateData = await db
+        .collection(collection.USERS)
+        .doc(username)
+        .collection(usersCollection.META)
+        .doc(metaDoc.PRIVATE)
+        .get();
 
-    return !querySnapshot.empty;
-  },
-
-  removeToken: async (token: string): Promise<boolean> => {
-    const tokenRef = db.collection(fs.TOKENS);
-    const querySnapshot = await tokenRef
-      .where("refreshToken", "==", token)
-      .get();
-
-    return !querySnapshot.empty;
+      return privateData.data()?.token;
+    } catch {
+      throw new ServiceError("auth/invalid", "Refresh token doesn't exist.");
+    }
   },
 };
 
