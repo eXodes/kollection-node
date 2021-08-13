@@ -1,12 +1,11 @@
-export enum fs {
+export enum collection {
   USERS = "users",
-  TOKENS = "tokens",
 }
 
-export enum fsUsers {
+export enum usersCollection {
   META = "meta",
 }
 
-export enum fsUserDoc {
+export enum metaDoc {
   PRIVATE = "private",
 }
