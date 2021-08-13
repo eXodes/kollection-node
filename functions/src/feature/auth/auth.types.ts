@@ -8,8 +8,19 @@ export type AuthInput<T = null> = {
   claims?: T | null;
 };
 
+export interface AuthModel {
+  name: string;
+  email: string;
+  id: string;
+}
+
 export interface AuthPayload extends JwtPayload {
   id: string;
   name: string;
   email: string;
+}
+
+export interface RefreshPayload extends JwtPayload {
+  id: string;
+  version: number;
 }
