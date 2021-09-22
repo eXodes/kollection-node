@@ -1,4 +1,4 @@
-name: Check
+name: Test Code
 on:
   pull_request:
   push:
@@ -27,7 +27,7 @@ jobs:
   run-library:
     needs:
       - run-linter
-    name: Build Cloud Function
+    name: Cloud Function Builder
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
